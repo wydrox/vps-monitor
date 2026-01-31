@@ -97,14 +97,14 @@ export function AlertsList() {
   const [showAcknowledged, setShowAcknowledged] = useState(false);
 
   const filteredAlerts = useMemo(() => {
-    if (!data?.alerts) return [];
-    if (showAcknowledged) return data.alerts;
-    return data.alerts.filter((alert) => !alert.acknowledged);
+    const alerts = data?.alerts || [];
+    if (showAcknowledged) return alerts;
+    return alerts.filter((alert) => !alert.acknowledged);
   }, [data?.alerts, showAcknowledged]);
 
   const unacknowledgedCount = useMemo(() => {
-    if (!data?.alerts) return 0;
-    return data.alerts.filter((alert) => !alert.acknowledged).length;
+    const alerts = data?.alerts || [];
+    return alerts.filter((alert) => !alert.acknowledged).length;
   }, [data?.alerts]);
 
   const handleAcknowledge = async (alert: Alert) => {

@@ -7,6 +7,47 @@
 [![Discord](https://img.shields.io/discord/994247717368909884?logo=discord&style=flat-square)](https://discord.gg/HDCt9MjyMJ)
 </div>
 
+## 🚀 Fork Enhancements
+
+This fork includes the following enhancements over the original [hhftechnology/vps-monitor](https://github.com/hhftechnology/vps-monitor):
+
+### ✨ New Features
+
+- **Historical Metrics System**
+  - Ring buffer storing 720 data points (12 hours at 1-minute granularity)
+  - API endpoint for historical averages: `GET /api/v1/containers/{id}/stats/history`
+  - Display of 1-hour and 12-hour CPU/Memory averages in containers table
+  - Stats recorded every 30 seconds with automatic rollup
+
+- **Enhanced Telegram Bot Integration**
+  - JWT authentication support for secure Telegram relay
+  - `/status` command shows real-time container stats with historical averages
+  - `/critical` command filters critical alerts only
+  - `/help` command for bot usage instructions
+  - Improved error handling and logging
+
+- **UI/UX Improvements**
+  - Expandable/collapsible container groups with URL state persistence
+  - Multi-select containers with batch operations (start, stop, restart, delete)
+  - Click-to-copy for long image names (auto-truncates SHA digests to 40 characters)
+  - Improved table layout with historical metrics columns
+  - Better visual hierarchy and spacing
+
+### 🐛 Bug Fixes
+
+- Fixed sorting issues with grouped containers (Docker Compose projects)
+- Prevented 502 errors by making container operations asynchronous
+- Added critical-only alert filtering via `ALERTS_FILTER=critical` environment variable
+- Resolved "Button is not defined" errors in frontend build
+
+### 🔧 Configuration Enhancements
+
+- **Alert Filtering**: Set `ALERTS_FILTER=critical` to only receive critical alerts (CPU/Memory thresholds), excluding container stopped notifications
+
+### 📦 Deployment
+
+Custom Docker image available with all enhancements included. See deployment section below for details.
+
 <img width="1735" height="1058" alt="image" src="https://github.com/user-attachments/assets/35241a4e-d523-40eb-9455-ed33ab837b66" />
 
 <img width="1735" height="1467" alt="image" src="https://github.com/user-attachments/assets/ccb23590-8ecd-4c89-89ea-68a24db69418" />

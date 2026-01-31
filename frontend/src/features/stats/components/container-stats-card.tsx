@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -87,10 +87,7 @@ export function ContainerStatsCard({
               {container.image}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge variant={isConnected ? "default" : "secondary"} className="text-xs">
-              {isConnected ? "Live" : "Off"}
-            </Badge>
+          <div className="flex items-center shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

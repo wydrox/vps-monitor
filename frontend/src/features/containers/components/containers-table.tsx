@@ -100,22 +100,31 @@ function ContainerRow({
           onCheckedChange={() => onToggleSelect(container.id)}
         />
       </TableCell>
-      <TableCell className="h-16 px-4 font-medium">
-        {formatContainerName(container.names)}
-      </TableCell>
-      <TableCell className="h-16 px-4 text-sm text-muted-foreground">
-        <button
-          onClick={async () => {
-            await navigator.clipboard.writeText(container.image);
-            toast.success("Image name copied to clipboard");
-          }}
-          className="text-left hover:underline cursor-pointer hover:text-foreground transition-colors max-w-full truncate block"
-          title={container.image}
-        >
-          {container.image.length > 40
-            ? `${container.image.substring(0, 37)}...`
-            : container.image}
-        </button>
+      <TableCell className="h-16 px-4">
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={async () => {
+              await navigator.clipboard.writeText(formatContainerName(container.names));
+              toast.success("Container name copied to clipboard");
+            }}
+            className="text-left font-medium hover:underline cursor-pointer transition-colors truncate max-w-[200px]"
+            title={formatContainerName(container.names)}
+          >
+            {formatContainerName(container.names)}
+          </button>
+          <button
+            onClick={async () => {
+              await navigator.clipboard.writeText(container.image);
+              toast.success("Image name copied to clipboard");
+            }}
+            className="text-left text-xs text-muted-foreground hover:underline cursor-pointer hover:text-foreground transition-colors truncate max-w-[200px]"
+            title={container.image}
+          >
+            {container.image.length > 40
+              ? `${container.image.substring(0, 37)}...`
+              : container.image}
+          </button>
+        </div>
       </TableCell>
       <TableCell className="h-16 px-4">
         <Badge
@@ -148,20 +157,7 @@ function ContainerRow({
           <span className="text-muted-foreground/50">—</span>
         )}
       </TableCell>
-      <TableCell className="h-16 px-4 max-w-[300px] text-sm text-muted-foreground">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="block cursor-help truncate">
-                {container.command}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-md">
-              {container.command}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </TableCell>
+
       <TableCell className="h-16 px-4">
         <TooltipProvider>
           <div className="flex items-center gap-1">
@@ -343,8 +339,7 @@ export function ContainersTable({
                 onCheckedChange={onSelectAll}
               />
             </TableHead>
-            <TableHead className="h-12 px-4 font-medium">Name</TableHead>
-            <TableHead className="h-12 px-4 font-medium">Image</TableHead>
+            <TableHead className="h-12 px-4 font-medium">Container</TableHead>
             <TableHead className="h-12 px-4 font-medium w-[120px]">
               State
             </TableHead>
@@ -352,7 +347,6 @@ export function ContainersTable({
             <TableHead className="h-12 px-4 font-medium">Created</TableHead>
             <TableHead className="h-12 px-4 font-medium w-[120px]">Avg 1h</TableHead>
             <TableHead className="h-12 px-4 font-medium w-[120px]">Avg 12h</TableHead>
-            <TableHead className="h-12 px-4 font-medium">Command</TableHead>
             <TableHead className="h-12 px-4 font-medium w-[160px]">
               Actions
             </TableHead>
@@ -361,7 +355,7 @@ export function ContainersTable({
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={10} className="h-32">
+              <TableCell colSpan={8} className="h-32">
                 <div className="flex items-center justify-center text-sm text-muted-foreground">
                   <Spinner className="mr-2" />
                   Loading containers…
@@ -370,7 +364,7 @@ export function ContainersTable({
             </TableRow>
           ) : isError ? (
             <TableRow>
-              <TableCell colSpan={10} className="h-32">
+              <TableCell colSpan={8} className="h-32">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <p className="text-sm text-muted-foreground">
                     {(error as Error)?.message || "Unable to load containers."}
@@ -383,7 +377,7 @@ export function ContainersTable({
             </TableRow>
           ) : filteredContainers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="h-32">
+              <TableCell colSpan={8} className="h-32">
                 <div className="text-center text-sm text-muted-foreground">
                   No containers found.
                 </div>
@@ -399,7 +393,7 @@ export function ContainersTable({
                     onClick={() => onToggleGroup(group.project)}
                   >
                     <TableCell
-                      colSpan={10}
+                      colSpan={8}
                       className="h-10 px-4 text-xs font-medium text-muted-foreground"
                     >
                       <div className="flex items-center gap-2">
