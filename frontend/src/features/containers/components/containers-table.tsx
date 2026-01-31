@@ -1,5 +1,7 @@
-import { ActivityIcon, ChevronDown, ChevronRight, FileTextIcon, PlayIcon, RotateCwIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import { Fragment } from "react";
+import { ActivityIcon, ChevronDown, ChevronRight, FileTextIcon, PlayIcon, RotateCwIcon, SquareIcon, Trash2Icon } from "lucide-react";
+import { toast } from "sonner";
+import { useContainerHistory } from "../hooks/use-container-history";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,35 +31,265 @@ import {
 } from "./container-utils";
 
 import type { ContainerInfo } from "../types";
-
 import type {
   ContainerActionType,
   GroupByOption,
   GroupedContainers,
 } from "./container-utils";
 
-interface ContainersTableProps {
-  isLoading: boolean;
-  isError: boolean;
-  error: unknown;
-  groupBy: GroupByOption;
-  filteredContainers: ContainerInfo[];
-  groupedItems: GroupedContainers[] | null;
-  pageItems: ContainerInfo[];
-  pendingAction: { id: string; type: ContainerActionType } | null;
-  isReadOnly: boolean;
-  expandedGroups: string[];
+interface ContainerRowProps {
+  container: ContainerInfo;
   selectedIds: string[];
   onToggleSelect: (id: string) => void;
-  onSelectAll: () => void;
-  onToggleGroup: (groupName: string) => void;
+  pendingAction: { id: string; type: ContainerActionType } | null;
+  isReadOnly: boolean;
   onStart: (container: ContainerInfo) => void;
   onStop: (container: ContainerInfo) => void;
   onRestart: (container: ContainerInfo) => void;
   onDelete: (container: ContainerInfo) => void;
   onViewLogs: (container: ContainerInfo) => void;
   onViewStats: (container: ContainerInfo) => void;
-  onRetry: () => void;
+}
+
+function ContainerRow({
+  container,
+  selectedIds,
+  onToggleSelect,
+  pendingAction,
+  isReadOnly,
+  onStart,
+  onStop,
+  onRestart,
+  onDelete,
+  onViewLogs,
+  onViewStats,
+}: ContainerRowProps) {
+  const { data: history, isLoading: isHistoryLoading } = useContainerHistory(container.id);
+  
+  const isContainerActionPending = (
+    action: ContainerActionType,
+    containerId: string
+  ) =>
+    pendingAction?.id === containerId && pendingAction.type === action;
+
+  const isContainerBusy = (containerId: string) =>
+    pendingAction?.id === containerId;
+
+  const state = container.state.toLowerCase();
+  const busy = isContainerBusy(container.id);
+  const startPending = isContainerActionPending("start", container.id);
+  const stopPending = isContainerActionPending("stop", container.id);
+  const restartPending = isContainerActionPending("restart", container.id);
+  const removePending = isContainerActionPending("remove", container.id);
+
+  const renderStats = (cpu?: number, mem?: number) => {
+    if (cpu === undefined || mem === undefined) return "—";
+    return (
+      <div className="flex flex-col text-xs leading-tight">
+        <span className="whitespace-nowrap">CPU {cpu.toFixed(1)}%</span>
+        <span className="whitespace-nowrap">RAM {mem.toFixed(1)}%</span>
+      </div>
+    );
+  };
+
+  return (
+    <TableRow className="hover:bg-muted/50">
+      <TableCell className="h-16 px-4 w-12">
+        <Checkbox
+          checked={selectedIds.includes(container.id)}
+          onCheckedChange={() => onToggleSelect(container.id)}
+        />
+      </TableCell>
+      <TableCell className="h-16 px-4 font-medium">
+        {formatContainerName(container.names)}
+      </TableCell>
+      <TableCell className="h-16 px-4 text-sm text-muted-foreground">
+        <button
+          onClick={async () => {
+            await navigator.clipboard.writeText(container.image);
+            toast.success("Image name copied to clipboard");
+          }}
+          className="text-left hover:underline cursor-pointer hover:text-foreground transition-colors max-w-full truncate block"
+          title={container.image}
+        >
+          {container.image.length > 40
+            ? `${container.image.substring(0, 37)}...`
+            : container.image}
+        </button>
+      </TableCell>
+      <TableCell className="h-16 px-4">
+        <Badge
+          className={`${getStateBadgeClass(container.state)} border-0`}
+        >
+          {toTitleCase(container.state)}
+        </Badge>
+      </TableCell>
+      <TableCell className="h-16 px-4 text-sm text-muted-foreground">
+        {formatUptime(container.created)}
+      </TableCell>
+      <TableCell className="h-16 px-4 text-sm text-muted-foreground">
+        {formatCreatedDate(container.created)}
+      </TableCell>
+      <TableCell className="h-16 px-4 text-sm text-muted-foreground w-[120px]">
+        {isHistoryLoading ? (
+           <span className="text-xs text-muted-foreground/50">Loading...</span>
+        ) : history ? (
+          renderStats(history.cpu_1h, history.memory_1h)
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        )}
+      </TableCell>
+      <TableCell className="h-16 px-4 text-sm text-muted-foreground w-[120px]">
+        {isHistoryLoading ? (
+           <span className="text-xs text-muted-foreground/50">Loading...</span>
+        ) : history ? (
+          renderStats(history.cpu_12h, history.memory_12h)
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        )}
+      </TableCell>
+      <TableCell className="h-16 px-4 max-w-[300px] text-sm text-muted-foreground">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="block cursor-help truncate">
+                {container.command}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-md">
+              {container.command}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </TableCell>
+      <TableCell className="h-16 px-4">
+        <TooltipProvider>
+          <div className="flex items-center gap-1">
+            {state === "exited" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => onStart(container)}
+                      disabled={busy || isReadOnly}
+                    >
+                      {startPending ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        <PlayIcon className="size-4" />
+                      )}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isReadOnly ? "Start (Read-only mode)" : "Start"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {state === "running" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => onStop(container)}
+                      disabled={busy || isReadOnly}
+                    >
+                      {stopPending ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        <SquareIcon className="size-4" />
+                      )}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isReadOnly ? "Stop (Read-only mode)" : "Stop"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => onRestart(container)}
+                    disabled={busy || isReadOnly}
+                  >
+                    {restartPending ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <RotateCwIcon className="size-4" />
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isReadOnly ? "Restart (Read-only mode)" : "Restart"}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:bg-destructive hover:text-white"
+                    onClick={() => onDelete(container)}
+                    disabled={busy || isReadOnly}
+                  >
+                    {removePending ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <Trash2Icon className="size-4" />
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isReadOnly ? "Delete (Read-only mode)" : "Delete"}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => onViewLogs(container)}
+                  disabled={busy}
+                >
+                  <FileTextIcon className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>View Logs</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => onViewStats(container)}
+                  disabled={busy}
+                >
+                  <ActivityIcon className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>View Stats</TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function ContainersTable({
@@ -83,193 +315,22 @@ export function ContainersTable({
   onViewStats,
   onRetry,
 }: ContainersTableProps) {
-  const isContainerActionPending = (
-    action: ContainerActionType,
-    containerId: string
-  ) =>
-    pendingAction?.id === containerId && pendingAction.type === action;
-
-  const isContainerBusy = (containerId: string) =>
-    pendingAction?.id === containerId;
-
-  const renderContainerRow = (container: ContainerInfo) => {
-    const state = container.state.toLowerCase();
-    const busy = isContainerBusy(container.id);
-    const startPending = isContainerActionPending("start", container.id);
-    const stopPending = isContainerActionPending("stop", container.id);
-    const restartPending = isContainerActionPending("restart", container.id);
-    const removePending = isContainerActionPending("remove", container.id);
-
-    return (
-      <TableRow key={container.id} className="hover:bg-muted/50">
-        <TableCell className="h-16 px-4 w-12">
-          <Checkbox
-            checked={selectedIds.includes(container.id)}
-            onCheckedChange={() => onToggleSelect(container.id)}
-          />
-        </TableCell>
-        <TableCell className="h-16 px-4 font-medium">
-          {formatContainerName(container.names)}
-        </TableCell>
-        <TableCell className="h-16 px-4 text-sm text-muted-foreground">
-          {container.image}
-        </TableCell>
-        <TableCell className="h-16 px-4">
-          <Badge
-            className={`${getStateBadgeClass(container.state)} border-0`}
-          >
-            {toTitleCase(container.state)}
-          </Badge>
-        </TableCell>
-        <TableCell className="h-16 px-4 text-sm text-muted-foreground">
-          {formatUptime(container.created)}
-        </TableCell>
-        <TableCell className="h-16 px-4 text-sm text-muted-foreground">
-          {formatCreatedDate(container.created)}
-        </TableCell>
-        <TableCell className="h-16 px-4 max-w-[300px] text-sm text-muted-foreground">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="block cursor-help truncate">
-                  {container.command}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-md">
-                {container.command}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </TableCell>
-        <TableCell className="h-16 px-4">
-          <TooltipProvider>
-            <div className="flex items-center gap-1">
-              {state === "exited" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-block">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => onStart(container)}
-                        disabled={busy || isReadOnly}
-                      >
-                        {startPending ? (
-                          <Spinner className="size-4" />
-                        ) : (
-                          <PlayIcon className="size-4" />
-                        )}
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {isReadOnly ? "Start (Read-only mode)" : "Start"}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {state === "running" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-block">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => onStop(container)}
-                        disabled={busy || isReadOnly}
-                      >
-                        {stopPending ? (
-                          <Spinner className="size-4" />
-                        ) : (
-                          <SquareIcon className="size-4" />
-                        )}
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {isReadOnly ? "Stop (Read-only mode)" : "Stop"}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-block">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => onRestart(container)}
-                      disabled={busy || isReadOnly}
-                    >
-                      {restartPending ? (
-                        <Spinner className="size-4" />
-                      ) : (
-                        <RotateCwIcon className="size-4" />
-                      )}
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isReadOnly ? "Restart (Read-only mode)" : "Restart"}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-block">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:bg-destructive hover:text-white"
-                      onClick={() => onDelete(container)}
-                      disabled={busy || isReadOnly}
-                    >
-                      {removePending ? (
-                        <Spinner className="size-4" />
-                      ) : (
-                        <Trash2Icon className="size-4" />
-                      )}
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isReadOnly ? "Delete (Read-only mode)" : "Delete"}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => onViewLogs(container)}
-                    disabled={busy}
-                  >
-                    <FileTextIcon className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>View Logs</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => onViewStats(container)}
-                    disabled={busy}
-                  >
-                    <ActivityIcon className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>View Stats</TooltipContent>
-              </Tooltip>
-            </div>
-          </TooltipProvider>
-        </TableCell>
-      </TableRow>
-    );
-  };
+  const renderRow = (container: ContainerInfo) => (
+    <ContainerRow
+      key={container.id}
+      container={container}
+      selectedIds={selectedIds}
+      onToggleSelect={onToggleSelect}
+      pendingAction={pendingAction}
+      isReadOnly={isReadOnly}
+      onStart={onStart}
+      onStop={onStop}
+      onRestart={onRestart}
+      onDelete={onDelete}
+      onViewLogs={onViewLogs}
+      onViewStats={onViewStats}
+    />
+  );
 
   return (
     <div className="rounded-lg border bg-card">
@@ -289,6 +350,8 @@ export function ContainersTable({
             </TableHead>
             <TableHead className="h-12 px-4 font-medium">Uptime</TableHead>
             <TableHead className="h-12 px-4 font-medium">Created</TableHead>
+            <TableHead className="h-12 px-4 font-medium w-[120px]">Avg 1h</TableHead>
+            <TableHead className="h-12 px-4 font-medium w-[120px]">Avg 12h</TableHead>
             <TableHead className="h-12 px-4 font-medium">Command</TableHead>
             <TableHead className="h-12 px-4 font-medium w-[160px]">
               Actions
@@ -298,7 +361,7 @@ export function ContainersTable({
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={8} className="h-32">
+              <TableCell colSpan={10} className="h-32">
                 <div className="flex items-center justify-center text-sm text-muted-foreground">
                   <Spinner className="mr-2" />
                   Loading containers…
@@ -307,7 +370,7 @@ export function ContainersTable({
             </TableRow>
           ) : isError ? (
             <TableRow>
-              <TableCell colSpan={8} className="h-32">
+              <TableCell colSpan={10} className="h-32">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <p className="text-sm text-muted-foreground">
                     {(error as Error)?.message || "Unable to load containers."}
@@ -320,7 +383,7 @@ export function ContainersTable({
             </TableRow>
           ) : filteredContainers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="h-32">
+              <TableCell colSpan={10} className="h-32">
                 <div className="text-center text-sm text-muted-foreground">
                   No containers found.
                 </div>
@@ -336,7 +399,7 @@ export function ContainersTable({
                     onClick={() => onToggleGroup(group.project)}
                   >
                     <TableCell
-                      colSpan={8}
+                      colSpan={10}
                       className="h-10 px-4 text-xs font-medium text-muted-foreground"
                     >
                       <div className="flex items-center gap-2">
@@ -352,12 +415,12 @@ export function ContainersTable({
                       </div>
                     </TableCell>
                   </TableRow>
-                  {isExpanded && group.items.map(renderContainerRow)}
+                  {isExpanded && group.items.map(renderRow)}
                 </Fragment>
               );
             })
           ) : (
-            pageItems.map(renderContainerRow)
+            pageItems.map(renderRow)
           )}
         </TableBody>
       </Table>
