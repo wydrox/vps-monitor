@@ -8,6 +8,7 @@
 bin/
 dist/
 build/
+home/vps-monitor
 
 # Backend (Go)
 home/tmp/
