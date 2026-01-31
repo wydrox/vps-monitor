@@ -12,18 +12,19 @@ import (
 	"github.com/hhftechnology/vps-monitor/internal/config"
 	"github.com/hhftechnology/vps-monitor/internal/docker"
 	"github.com/hhftechnology/vps-monitor/internal/models"
+	"github.com/hhftechnology/vps-monitor/internal/stats"
 )
 
 // Monitor handles background monitoring and alerting
 type Monitor struct {
-	docker  *docker.MultiHostClient
-	config  *config.AlertConfig
-	history *AlertHistory
-	stopCh  chan struct{}
-	wg      sync.WaitGroup
+	docker       *docker.MultiHostClient
+	config       *config.AlertConfig
+	history      *AlertHistory
+	statsHistory *stats.HistoryManager
+	stopCh       chan struct{}
+	wg           sync.WaitGroup
 
-	// Track container states for detecting changes
-	containerStates map[string]string // key: host:containerID, value: state
+	containerStates map[string]string
 	statesMu        sync.RWMutex
 }
 
@@ -32,7 +33,8 @@ func NewMonitor(dockerClient *docker.MultiHostClient, alertConfig *config.AlertC
 	return &Monitor{
 		docker:          dockerClient,
 		config:          alertConfig,
-		history:         NewAlertHistory(100), // Keep last 100 alerts
+		history:         NewAlertHistory(100),
+		statsHistory:    stats.NewHistoryManager(),
 		stopCh:          make(chan struct{}),
 		containerStates: make(map[string]string),
 	}
@@ -62,6 +64,10 @@ func (m *Monitor) Stop() {
 // GetHistory returns the alert history
 func (m *Monitor) GetHistory() *AlertHistory {
 	return m.history
+}
+
+func (m *Monitor) GetStatsHistory() *stats.HistoryManager {
+	return m.statsHistory
 }
 
 // monitorLoop is the main monitoring loop
@@ -174,6 +180,8 @@ func (m *Monitor) checkResourceThresholds(ctx context.Context) {
 			if err != nil {
 				continue
 			}
+
+			m.statsHistory.RecordStats(ctr.ID, *stats)
 
 			containerName := ctr.ID[:12]
 			if len(ctr.Names) > 0 {
