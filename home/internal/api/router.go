@@ -138,14 +138,13 @@ func (ar *APIRouter) Routes() *chi.Mux {
 func (ar *APIRouter) registerContainerRoutes(r chi.Router) {
 	r.Get("/containers", ar.GetContainers)
 	r.Route("/containers/{id}", func(r chi.Router) {
-		// Read-only routes (always available)
 		r.Get("/", ar.GetContainer)
 		r.Get("/logs/parsed", ar.GetContainerLogsParsed)
 		r.Get("/env", ar.GetEnvVariables)
-		r.Get("/stats", ar.HandleContainerStats)       // WebSocket for streaming stats
-		r.Get("/stats/once", ar.GetContainerStatsOnce) // Single snapshot
+		r.Get("/stats", ar.HandleContainerStats)
+		r.Get("/stats/once", ar.GetContainerStatsOnce)
+		r.Get("/stats/history", ar.GetContainerHistoricalStats)
 
-		// Mutating routes (blocked in read-only mode)
 		r.Group(func(mutating chi.Router) {
 			mutating.Use(middleware.ReadOnly(ar.config))
 			mutating.Post("/start", ar.StartContainer)

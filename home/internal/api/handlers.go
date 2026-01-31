@@ -327,3 +327,29 @@ func (ar *APIRouter) UpdateEnvVariables(w http.ResponseWriter, r *http.Request) 
 		"new_container_id": newContainerID,
 	})
 }
+
+func (ar *APIRouter) GetContainerHistoricalStats(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	if ar.alertMonitor == nil {
+		http.Error(w, "Stats history not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	statsHistory := ar.alertMonitor.GetStatsHistory()
+	
+	cpu1h, mem1h, has1h := statsHistory.Get1hAverages(id)
+	cpu12h, mem12h, has12h := statsHistory.Get12hAverages(id)
+
+	hasData := has1h || has12h
+
+	response := models.HistoricalAverages{
+		CPU1h:    cpu1h,
+		Memory1h: mem1h,
+		CPU12h:   cpu12h,
+		Memory12h: mem12h,
+		HasData:  hasData,
+	}
+
+	WriteJsonResponse(w, http.StatusOK, response)
+}
