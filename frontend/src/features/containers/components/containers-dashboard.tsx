@@ -92,6 +92,8 @@ export function ContainersDashboard() {
     setPageSize,
     page,
     setPage,
+    expandedGroups,
+    setExpandedGroups,
   } = useContainersDashboardUrlState();
   const [selectedContainer, setSelectedContainer] =
     useState<ContainerInfo | null>(null);
@@ -430,6 +432,14 @@ export function ContainersDashboard() {
           pageItems={pageItems}
           pendingAction={pendingAction}
           isReadOnly={isReadOnly}
+          expandedGroups={expandedGroups}
+          onToggleGroup={(groupName: string) => {
+            setExpandedGroups(
+              expandedGroups.includes(groupName)
+                ? expandedGroups.filter((g) => g !== groupName)
+                : [...expandedGroups, groupName]
+            );
+          }}
           onStart={handleStartContainer}
           onStop={handleStopContainer}
           onRestart={handleRestartContainer}

@@ -1,5 +1,6 @@
 import {
   createParser,
+  parseAsArrayOf,
   parseAsInteger,
   parseAsIsoDateTime,
   parseAsString,
@@ -46,6 +47,7 @@ const searchParamsConfig = {
   pageSize: parseAsInteger.withDefault(10),
   from: parseAsIsoDateTime,
   to: parseAsIsoDateTime,
+  expanded: parseAsArrayOf(parseAsString).withDefault([]),
 };
 
 export function useContainersDashboardUrlState() {
@@ -63,6 +65,7 @@ export function useContainersDashboardUrlState() {
     pageSize,
     from,
     to,
+    expanded: expandedGroups,
   } = params;
 
   // Convert from/to into DateRange format
@@ -164,6 +167,15 @@ export function useContainersDashboardUrlState() {
     [setParams]
   );
 
+  const setExpandedGroups = useCallback(
+    (value: string[]) => {
+      setParams({
+        expanded: value,
+      });
+    },
+    [setParams]
+  );
+
   return {
     searchTerm,
     setSearchTerm,
@@ -182,5 +194,7 @@ export function useContainersDashboardUrlState() {
     setPage,
     pageSize,
     setPageSize,
+    expandedGroups,
+    setExpandedGroups,
   };
 }

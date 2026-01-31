@@ -1,4 +1,4 @@
-import { ActivityIcon, FileTextIcon, PlayIcon, RotateCwIcon, SquareIcon, Trash2Icon } from "lucide-react";
+import { ActivityIcon, ChevronDown, ChevronRight, FileTextIcon, PlayIcon, RotateCwIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import { Fragment } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,8 @@ interface ContainersTableProps {
   pageItems: ContainerInfo[];
   pendingAction: { id: string; type: ContainerActionType } | null;
   isReadOnly: boolean;
+  expandedGroups: string[];
+  onToggleGroup: (groupName: string) => void;
   onStart: (container: ContainerInfo) => void;
   onStop: (container: ContainerInfo) => void;
   onRestart: (container: ContainerInfo) => void;
@@ -64,6 +66,8 @@ export function ContainersTable({
   pageItems,
   pendingAction,
   isReadOnly,
+  expandedGroups,
+  onToggleGroup,
   onStart,
   onStop,
   onRestart,
@@ -304,20 +308,35 @@ export function ContainersTable({
               </TableCell>
             </TableRow>
           ) : groupBy === "compose" && groupedItems ? (
-            groupedItems.map((group) => (
-              <Fragment key={group.project}>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell
-                    colSpan={7}
-                    className="h-10 px-4 text-xs font-medium text-muted-foreground"
+            groupedItems.map((group) => {
+              const isExpanded = expandedGroups.includes(group.project);
+              return (
+                <Fragment key={group.project}>
+                  <TableRow 
+                    className="bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => onToggleGroup(group.project)}
                   >
-                    {group.project} · {group.items.length} container
-                    {group.items.length === 1 ? "" : "s"}
-                  </TableCell>
-                </TableRow>
-                {group.items.map(renderContainerRow)}
-              </Fragment>
-            ))
+                    <TableCell
+                      colSpan={7}
+                      className="h-10 px-4 text-xs font-medium text-muted-foreground"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 transition-transform" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 transition-transform" />
+                        )}
+                        <span>
+                          {group.project} · {group.items.length} container
+                          {group.items.length === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {isExpanded && group.items.map(renderContainerRow)}
+                </Fragment>
+              );
+            })
           ) : (
             pageItems.map(renderContainerRow)
           )}
