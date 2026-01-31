@@ -6,7 +6,6 @@ COPY home/go.mod home/go.sum ./
 RUN go mod download
 
 COPY home/ ./
-COPY frontend/dist /build/internal/static/dist/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o vps-monitor ./cmd/server
 
