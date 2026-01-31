@@ -20,6 +20,7 @@ type AlertConfig struct {
 	CPUThreshold    float64       // 0-100, alert when exceeded
 	MemoryThreshold float64       // 0-100, alert when exceeded
 	CheckInterval   time.Duration // How often to check thresholds
+	AlertsFilter    string        // "all" or "critical"
 }
 
 type Config struct {
@@ -53,9 +54,14 @@ func parseAlertConfig() AlertConfig {
 	config := AlertConfig{
 		Enabled:         os.Getenv("ALERTS_ENABLED") == "true",
 		WebhookURL:      os.Getenv("ALERTS_WEBHOOK_URL"),
-		CPUThreshold:    80,  // Default: 80%
-		MemoryThreshold: 90,  // Default: 90%
+		CPUThreshold:    80, // Default: 80%
+		MemoryThreshold: 90, // Default: 90%
 		CheckInterval:   30 * time.Second,
+		AlertsFilter:    "all",
+	}
+
+	if filter := os.Getenv("ALERTS_FILTER"); filter != "" {
+		config.AlertsFilter = filter
 	}
 
 	if cpuStr := os.Getenv("ALERTS_CPU_THRESHOLD"); cpuStr != "" {

@@ -81,7 +81,8 @@ export function getStateBadgeClass(state: string) {
 }
 
 export function groupByCompose(
-  containers: ContainerInfo[]
+  containers: ContainerInfo[],
+  sortDirection: SortDirection = "desc"
 ): GroupedContainers[] {
   const groups = new Map<string, ContainerInfo[]>();
 
@@ -91,11 +92,20 @@ export function groupByCompose(
     if (!groups.has(key)) {
       groups.set(key, []);
     }
-    groups.get(key)?.push(container)
+    groups.get(key)?.push(container);
   });
 
   return Array.from(groups.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([_, itemsA], [__, itemsB]) => {
+      const containerA = itemsA[0];
+      const containerB = itemsB[0];
+
+      if (!containerA || !containerB) return 0;
+
+      return sortDirection === "desc"
+        ? containerB.created - containerA.created
+        : containerA.created - containerB.created;
+    })
     .map(([project, items]) => ({ project, items }));
 }
 

@@ -189,7 +189,7 @@ export function ContainersDashboard() {
     if (groupBy !== "compose") {
       return null;
     }
-    return groupByCompose(pageItems);
+    return groupByCompose(pageItems, sortDirection);
   }, [pageItems, groupBy]);
 
   const stateCounts = useMemo(() => {
@@ -218,26 +218,33 @@ export function ContainersDashboard() {
   ) => {
     setPendingAction({ id: container.id, type: actionType });
     try {
-      let message = "";
+      let result: { message: string; isPending: boolean };
       switch (actionType) {
         case "start":
-          message = await startContainer(container.id, container.host);
+          result = await startContainer(container.id, container.host);
           break;
         case "stop":
-          message = await stopContainer(container.id, container.host);
+          result = await stopContainer(container.id, container.host);
           break;
         case "restart":
-          message = await restartContainer(container.id, container.host);
+          result = await restartContainer(container.id, container.host);
           break;
         case "remove":
-          message = await removeContainer(container.id, container.host);
+          result = await removeContainer(container.id, container.host);
           break;
         default:
           return;
       }
-      if (message) {
-        toast.success(message);
+
+      if (result.message) {
+        if (result.isPending) {
+          toast.info(result.message);
+        } else {
+          toast.success(result.message);
+        }
       }
+
+      // Initial refetch to pick up immediate changes if any
       await refetch();
     } catch (error) {
       if (error instanceof Error) {

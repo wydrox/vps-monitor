@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -108,14 +109,21 @@ func (ar *APIRouter) StopContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := ar.docker.StopContainer(r.Context(), host, id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	WriteJsonResponse(w, http.StatusOK, map[string]any{
-		"message": "Container stopped",
+	// Return 202 Accepted immediately to prevent timeouts
+	WriteJsonResponse(w, http.StatusAccepted, map[string]any{
+		"message": "Container stop initiated",
+		"status":  "pending",
 	})
+
+	// Execute stop asynchronously
+	go func() {
+		// Use Background context for async operation as request context will be cancelled
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := ar.docker.StopContainer(ctx, host, id); err != nil {
+			log.Printf("Failed to stop container %s on host %s: %v", id, host, err)
+		}
+	}()
 }
 
 func (ar *APIRouter) RestartContainer(w http.ResponseWriter, r *http.Request) {
@@ -127,14 +135,21 @@ func (ar *APIRouter) RestartContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := ar.docker.RestartContainer(r.Context(), host, id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	WriteJsonResponse(w, http.StatusOK, map[string]any{
-		"message": "Container restarted",
+	// Return 202 Accepted immediately to prevent timeouts
+	WriteJsonResponse(w, http.StatusAccepted, map[string]any{
+		"message": "Container restart initiated",
+		"status":  "pending",
 	})
+
+	// Execute restart asynchronously
+	go func() {
+		// Use Background context for async operation as request context will be cancelled
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		if err := ar.docker.RestartContainer(ctx, host, id); err != nil {
+			log.Printf("Failed to restart container %s on host %s: %v", id, host, err)
+		}
+	}()
 }
 
 func (ar *APIRouter) RemoveContainer(w http.ResponseWriter, r *http.Request) {

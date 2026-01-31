@@ -222,6 +222,11 @@ func (m *Monitor) triggerAlert(alert models.Alert) {
 
 	// Send webhook
 	if m.config.WebhookURL != "" {
+		// Filter non-critical alerts if configured
+		if m.config.AlertsFilter == "critical" && !isCriticalAlert(alert) {
+			return
+		}
+
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -231,4 +236,8 @@ func (m *Monitor) triggerAlert(alert models.Alert) {
 			}
 		}()
 	}
+}
+
+func isCriticalAlert(alert models.Alert) bool {
+	return alert.Type == models.AlertContainerStopped
 }

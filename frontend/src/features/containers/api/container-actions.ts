@@ -7,13 +7,19 @@ type ContainerAction = "start" | "stop" | "restart" | "remove";
 
 interface ActionResponse {
   message?: string;
+  status?: string;
+}
+
+export interface ActionResult {
+  message: string;
+  isPending: boolean;
 }
 
 async function performContainerAction(
   id: string,
   action: ContainerAction,
   host: string
-): Promise<string> {
+): Promise<ActionResult> {
   const endpoint = `${BASE_URL}/${encodeURIComponent(id)}/${action}?host=${encodeURIComponent(host)}`;
   const response = await authenticatedFetch(endpoint, {
     method: "POST",
@@ -27,13 +33,13 @@ async function performContainerAction(
     throw new Error(message || `Failed to ${action} container`);
   }
 
+  const isPending = response.status === 202;
   const data = (await response.json()) as ActionResponse | undefined;
 
-  if (data && typeof data.message === "string") {
-    return data.message;
-  }
-
-  return "Action completed successfully";
+  return {
+    message: data?.message || "Action completed successfully",
+    isPending,
+  };
 }
 
 export function startContainer(id: string, host: string) {
