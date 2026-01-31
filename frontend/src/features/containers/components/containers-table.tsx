@@ -3,6 +3,7 @@ import { Fragment } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -46,6 +47,9 @@ interface ContainersTableProps {
   pendingAction: { id: string; type: ContainerActionType } | null;
   isReadOnly: boolean;
   expandedGroups: string[];
+  selectedIds: string[];
+  onToggleSelect: (id: string) => void;
+  onSelectAll: () => void;
   onToggleGroup: (groupName: string) => void;
   onStart: (container: ContainerInfo) => void;
   onStop: (container: ContainerInfo) => void;
@@ -67,6 +71,9 @@ export function ContainersTable({
   pendingAction,
   isReadOnly,
   expandedGroups,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
   onToggleGroup,
   onStart,
   onStop,
@@ -95,6 +102,12 @@ export function ContainersTable({
 
     return (
       <TableRow key={container.id} className="hover:bg-muted/50">
+        <TableCell className="h-16 px-4 w-12">
+          <Checkbox
+            checked={selectedIds.includes(container.id)}
+            onCheckedChange={() => onToggleSelect(container.id)}
+          />
+        </TableCell>
         <TableCell className="h-16 px-4 font-medium">
           {formatContainerName(container.names)}
         </TableCell>
@@ -263,6 +276,12 @@ export function ContainersTable({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b">
+            <TableHead className="h-12 px-4 w-12">
+              <Checkbox
+                checked={selectedIds.length > 0 && selectedIds.length === pageItems.length}
+                onCheckedChange={onSelectAll}
+              />
+            </TableHead>
             <TableHead className="h-12 px-4 font-medium">Name</TableHead>
             <TableHead className="h-12 px-4 font-medium">Image</TableHead>
             <TableHead className="h-12 px-4 font-medium w-[120px]">
@@ -279,7 +298,7 @@ export function ContainersTable({
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-32">
+              <TableCell colSpan={8} className="h-32">
                 <div className="flex items-center justify-center text-sm text-muted-foreground">
                   <Spinner className="mr-2" />
                   Loading containers…
@@ -288,7 +307,7 @@ export function ContainersTable({
             </TableRow>
           ) : isError ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-32">
+              <TableCell colSpan={8} className="h-32">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <p className="text-sm text-muted-foreground">
                     {(error as Error)?.message || "Unable to load containers."}
@@ -301,7 +320,7 @@ export function ContainersTable({
             </TableRow>
           ) : filteredContainers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-32">
+              <TableCell colSpan={8} className="h-32">
                 <div className="text-center text-sm text-muted-foreground">
                   No containers found.
                 </div>
@@ -317,7 +336,7 @@ export function ContainersTable({
                     onClick={() => onToggleGroup(group.project)}
                   >
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="h-10 px-4 text-xs font-medium text-muted-foreground"
                     >
                       <div className="flex items-center gap-2">

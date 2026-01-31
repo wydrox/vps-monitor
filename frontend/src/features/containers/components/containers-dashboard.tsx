@@ -101,6 +101,7 @@ export function ContainersDashboard() {
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
   const [detailsContainer, setDetailsContainer] =
     useState<ContainerInfo | null>(null);
+  const [selectedContainerIds, setSelectedContainerIds] = useState<string[]>([]);
   const [pendingAction, setPendingAction] = useState<{
     id: string;
     type: ContainerActionType;
@@ -366,6 +367,47 @@ export function ContainersDashboard() {
     setConfirmAction({ type: "remove", container });
   };
 
+  const handleSelectAll = () => {
+    if (selectedContainerIds.length === pageItems.length) {
+      setSelectedContainerIds([]);
+    } else {
+      setSelectedContainerIds(pageItems.map((c) => c.id));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedContainerIds((prev) =>
+      prev.includes(id) ? prev.filter((cid) => cid !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchAction = async (action: "start" | "stop" | "restart" | "remove") => {
+    const selectedContainers = containers.filter((c) =>
+      selectedContainerIds.includes(c.id)
+    );
+
+    if (action === "remove" || action === "stop") {
+      const confirmMessage = action === "remove" 
+        ? `Remove ${selectedContainers.length} containers? This cannot be undone.`
+        : `Stop ${selectedContainers.length} containers?`;
+      
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+    }
+
+    for (const container of selectedContainers) {
+      await executeAction(action, container);
+    }
+
+    setSelectedContainerIds([]);
+    toast.success(`Batch ${action} completed`);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedContainerIds([]);
+  };
+
   const confirmActionTitle =
     confirmAction?.type === "stop"
       ? "Stop container?"
@@ -422,6 +464,57 @@ export function ContainersDashboard() {
 
         <ContainersStateSummary stateCounts={stateCounts} />
 
+        {selectedContainerIds.length > 0 && (
+          <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {selectedContainerIds.length} selected
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleClearSelection}
+              >
+                Clear
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBatchAction("start")}
+                disabled={isReadOnly}
+              >
+                Start Selected
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBatchAction("stop")}
+                disabled={isReadOnly}
+              >
+                Stop Selected
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBatchAction("restart")}
+                disabled={isReadOnly}
+              >
+                Restart Selected
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleBatchAction("remove")}
+                disabled={isReadOnly}
+              >
+                Delete Selected
+              </Button>
+            </div>
+          </div>
+        )}
+
         <ContainersTable
           isLoading={isLoading}
           isError={isError}
@@ -433,6 +526,9 @@ export function ContainersDashboard() {
           pendingAction={pendingAction}
           isReadOnly={isReadOnly}
           expandedGroups={expandedGroups}
+          selectedIds={selectedContainerIds}
+          onToggleSelect={handleToggleSelect}
+          onSelectAll={handleSelectAll}
           onToggleGroup={(groupName: string) => {
             setExpandedGroups(
               expandedGroups.includes(groupName)
