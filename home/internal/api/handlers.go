@@ -55,6 +55,24 @@ func (ar *APIRouter) GetContainers(w http.ResponseWriter, r *http.Request) {
 		allContainers = append(allContainers, containers...)
 	}
 
+	// Add historical stats if alert monitor is available
+	if ar.alertMonitor != nil {
+		statsHistory := ar.alertMonitor.GetStatsHistory()
+		for i := range allContainers {
+			cpu1h, mem1h, has1h := statsHistory.Get1hAverages(allContainers[i].ID)
+			cpu12h, mem12h, has12h := statsHistory.Get12hAverages(allContainers[i].ID)
+			
+			if has1h || has12h {
+				allContainers[i].HistoricalStats = &models.HistoricalStats{
+					CPU1h:     cpu1h,
+					Memory1h:  mem1h,
+					CPU12h:    cpu12h,
+					Memory12h: mem12h,
+				}
+			}
+		}
+	}
+
 	WriteJsonResponse(w, http.StatusOK, map[string]any{
 		"containers": allContainers,
 		"hosts":      ar.docker.GetHosts(),

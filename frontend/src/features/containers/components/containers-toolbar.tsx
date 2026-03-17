@@ -32,7 +32,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { toTitleCase } from "./container-utils";
 
 import type { DateRange } from "react-day-picker";
-import type { GroupByOption, SortDirection } from "./container-utils";
+import type { GroupByOption, SortDirection, StatsInterval, SortColumn } from "./container-utils";
 import type { DockerHost } from "../types";
 
 interface ContainersToolbarProps {
@@ -46,8 +46,12 @@ interface ContainersToolbarProps {
   availableHosts: DockerHost[];
   sortDirection: SortDirection;
   onSortDirectionChange: (direction: SortDirection) => void;
+  sortBy: SortColumn;
+  onSortByChange: (column: SortColumn) => void;
   groupBy: GroupByOption;
   onGroupByChange: (value: GroupByOption) => void;
+  statsInterval: StatsInterval;
+  onStatsIntervalChange: (interval: StatsInterval) => void;
   dateRange: DateRange | undefined;
   onDateRangeChange: (range: DateRange | undefined) => void;
   onDateRangeClear: () => void;
@@ -66,8 +70,12 @@ export function ContainersToolbar({
   availableHosts,
   sortDirection,
   onSortDirectionChange,
+  sortBy,
+  onSortByChange,
   groupBy,
   onGroupByChange,
+  statsInterval,
+  onStatsIntervalChange,
   dateRange,
   onDateRangeChange,
   onDateRangeClear,
@@ -109,6 +117,18 @@ export function ContainersToolbar({
     });
   };
 
+  const getSortByLabel = (column: SortColumn) => {
+    switch (column) {
+      case "name": return "Name";
+      case "state": return "State";
+      case "uptime": return "Uptime";
+      case "created": return "Created";
+      case "cpu": return "CPU";
+      case "ram": return "RAM";
+      default: return "Created";
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <Input
@@ -118,7 +138,7 @@ export function ContainersToolbar({
         placeholder="Search containers..."
         className="sm:max-w-sm"
       />
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-9">
@@ -170,7 +190,29 @@ export function ContainersToolbar({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-9">
-              {sortDirection === "desc" ? "Newest" : "Oldest"}
+              Sort: {getSortByLabel(sortBy)} {sortDirection === "desc" ? "↓" : "↑"}
+              <ChevronDownIcon className="ml-2 size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuRadioGroup
+              value={sortBy}
+              onValueChange={(value) => onSortByChange(value as SortColumn)}
+            >
+              <DropdownMenuRadioItem value="name">Name</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="state">State</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="uptime">Uptime</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="created">Created</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="cpu">CPU</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="ram">RAM</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9">
+              {sortDirection === "desc" ? "Desc" : "Asc"}
               <ChevronDownIcon className="ml-2 size-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -182,10 +224,10 @@ export function ContainersToolbar({
               }
             >
               <DropdownMenuRadioItem value="desc">
-                Newest first
+                Descending
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="asc">
-                Oldest first
+                Ascending
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
@@ -212,6 +254,26 @@ export function ContainersToolbar({
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Stats Interval Switch */}
+        <div className="flex items-center bg-muted rounded-md p-1 h-9">
+          <Button
+            variant={statsInterval === "1h" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 text-xs px-2"
+            onClick={() => onStatsIntervalChange("1h")}
+          >
+            1h
+          </Button>
+          <Button
+            variant={statsInterval === "12h" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 text-xs px-2"
+            onClick={() => onStatsIntervalChange("12h")}
+          >
+            12h
+          </Button>
+        </div>
 
         <Popover>
           <PopoverTrigger asChild>

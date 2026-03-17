@@ -12,6 +12,8 @@ import type { DateRange } from "react-day-picker";
 import type {
   GroupByOption,
   SortDirection,
+  StatsInterval,
+  SortColumn,
 } from "../components/container-utils";
 
 // Custom parser for SortDirection
@@ -36,13 +38,37 @@ const parseAsGroupBy = createParser({
   serialize: (value: GroupByOption) => value,
 });
 
+// Custom parser for StatsInterval
+const parseAsStatsInterval = createParser({
+  parse: (value): StatsInterval | null => {
+    if (value === "1h" || value === "12h") {
+      return value;
+    }
+    return null;
+  },
+  serialize: (value: StatsInterval) => value,
+});
+
+// Custom parser for SortColumn
+const parseAsSortColumn = createParser({
+  parse: (value): SortColumn | null => {
+    if (value === "name" || value === "state" || value === "uptime" || value === "created" || value === "cpu" || value === "ram") {
+      return value;
+    }
+    return null;
+  },
+  serialize: (value: SortColumn) => value,
+});
+
 // Search params configuration with defaults
 const searchParamsConfig = {
   search: parseAsString.withDefault(""),
   state: parseAsString.withDefault("all"),
   host: parseAsString.withDefault("all"),
   sort: parseAsSortDirection.withDefault("desc" as SortDirection),
+  sortBy: parseAsSortColumn.withDefault("created" as SortColumn),
   group: parseAsGroupBy.withDefault("none" as GroupByOption),
+  interval: parseAsStatsInterval.withDefault("1h" as StatsInterval),
   page: parseAsInteger.withDefault(1),
   pageSize: parseAsInteger.withDefault(10),
   from: parseAsIsoDateTime,
@@ -60,7 +86,9 @@ export function useContainersDashboardUrlState() {
     state: stateFilter,
     host: hostFilter,
     sort: sortDirection,
+    sortBy,
     group: groupBy,
+    interval: statsInterval,
     page,
     pageSize,
     from,
@@ -119,11 +147,29 @@ export function useContainersDashboardUrlState() {
     [setParams]
   );
 
+  const setSortBy = useCallback(
+    (value: SortColumn) => {
+      setParams({
+        sortBy: value,
+      });
+    },
+    [setParams]
+  );
+
   const setGroupBy = useCallback(
     (value: GroupByOption) => {
       setParams({
         group: value,
         page: 1,
+      });
+    },
+    [setParams]
+  );
+
+  const setStatsInterval = useCallback(
+    (value: StatsInterval) => {
+      setParams({
+        interval: value,
       });
     },
     [setParams]
@@ -185,8 +231,12 @@ export function useContainersDashboardUrlState() {
     setHostFilter,
     sortDirection,
     setSortDirection,
+    sortBy,
+    setSortBy,
     groupBy,
     setGroupBy,
+    statsInterval,
+    setStatsInterval,
     dateRange,
     setDateRange,
     clearDateRange,

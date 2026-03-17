@@ -3,6 +3,12 @@ import type { ContainerInfo } from "../types";
 export type SortDirection = "asc" | "desc";
 export type GroupByOption = "none" | "compose";
 export type ContainerActionType = "start" | "stop" | "restart" | "remove";
+export type StatsInterval = "1h" | "12h";
+export type SortColumn = "name" | "state" | "uptime" | "created";
+export type SortColumn = "name" | "state" | "uptime" | "created" | "cpu" | "ram";
+export type SortColumn = "name" | "state" | "uptime" | "created";
+export type GroupByOption = "none" | "compose";
+export type ContainerActionType = "start" | "stop" | "restart" | "remove";
 
 export interface GroupedContainers {
   project: string;

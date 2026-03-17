@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { ActivityIcon, ChevronDown, ChevronRight, FileTextIcon, PlayIcon, RotateCwIcon, SquareIcon, Trash2Icon } from "lucide-react";
+import { ActivityIcon, ArrowUpDown, ChevronDown, ChevronRight, ChevronUp, FileTextIcon, PlayIcon, RotateCwIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { useContainerHistory } from "../hooks/use-container-history";
 
@@ -35,6 +35,9 @@ import type {
   ContainerActionType,
   GroupByOption,
   GroupedContainers,
+  SortDirection,
+  SortColumn,
+  StatsInterval,
 } from "./container-utils";
 
 interface ContainerRowProps {
@@ -49,6 +52,7 @@ interface ContainerRowProps {
   onDelete: (container: ContainerInfo) => void;
   onViewLogs: (container: ContainerInfo) => void;
   onViewStats: (container: ContainerInfo) => void;
+  statsInterval: StatsInterval;
 }
 
 function ContainerRow({
@@ -63,6 +67,7 @@ function ContainerRow({
   onDelete,
   onViewLogs,
   onViewStats,
+  statsInterval,
 }: ContainerRowProps) {
   const { data: history, isLoading: isHistoryLoading } = useContainerHistory(container.id);
   
@@ -82,15 +87,8 @@ function ContainerRow({
   const restartPending = isContainerActionPending("restart", container.id);
   const removePending = isContainerActionPending("remove", container.id);
 
-  const renderStats = (cpu?: number, mem?: number) => {
-    if (cpu === undefined || mem === undefined) return "—";
-    return (
-      <div className="flex flex-col text-xs leading-tight">
-        <span className="whitespace-nowrap">CPU {cpu.toFixed(1)}%</span>
-        <span className="whitespace-nowrap">RAM {mem.toFixed(1)}%</span>
-      </div>
-    );
-  };
+  const cpuValue = statsInterval === "1h" ? history?.cpu_1h : history?.cpu_12h;
+  const memValue = statsInterval === "1h" ? history?.memory_1h : history?.memory_12h;
 
   return (
     <TableRow className="hover:bg-muted/50">
@@ -139,20 +137,26 @@ function ContainerRow({
       <TableCell className="h-16 px-4 text-sm text-muted-foreground">
         {formatCreatedDate(container.created)}
       </TableCell>
-      <TableCell className="h-16 px-4 text-sm text-muted-foreground w-[120px]">
+      {/* CPU Column */}
+      <TableCell className="h-16 px-4 text-sm text-muted-foreground w-[100px]">
         {isHistoryLoading ? (
-           <span className="text-xs text-muted-foreground/50">Loading...</span>
-        ) : history ? (
-          renderStats(history.cpu_1h, history.memory_1h)
+          <span className="text-xs text-muted-foreground/50">...</span>
+        ) : cpuValue !== undefined ? (
+          <span className={`font-medium ${cpuValue > 80 ? "text-destructive" : cpuValue > 50 ? "text-amber-500" : ""}`}>
+            {cpuValue.toFixed(1)}%
+          </span>
         ) : (
           <span className="text-muted-foreground/50">—</span>
         )}
       </TableCell>
-      <TableCell className="h-16 px-4 text-sm text-muted-foreground w-[120px]">
+      {/* RAM Column */}
+      <TableCell className="h-16 px-4 text-sm text-muted-foreground w-[100px]">
         {isHistoryLoading ? (
-           <span className="text-xs text-muted-foreground/50">Loading...</span>
-        ) : history ? (
-          renderStats(history.cpu_12h, history.memory_12h)
+          <span className="text-xs text-muted-foreground/50">...</span>
+        ) : memValue !== undefined ? (
+          <span className={`font-medium ${memValue > 80 ? "text-destructive" : memValue > 50 ? "text-amber-500" : ""}`}>
+            {memValue.toFixed(1)}%
+          </span>
         ) : (
           <span className="text-muted-foreground/50">—</span>
         )}
@@ -288,6 +292,34 @@ function ContainerRow({
   );
 }
 
+interface ContainersTableProps {
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  groupBy: GroupByOption;
+  filteredContainers: ContainerInfo[];
+  groupedItems: GroupedContainers[] | null;
+  pageItems: ContainerInfo[];
+  pendingAction: { id: string; type: ContainerActionType } | null;
+  isReadOnly: boolean;
+  expandedGroups: string[];
+  selectedIds: string[];
+  onToggleSelect: (id: string) => void;
+  onSelectAll: () => void;
+  onToggleGroup: (groupName: string) => void;
+  onStart: (container: ContainerInfo) => void;
+  onStop: (container: ContainerInfo) => void;
+  onRestart: (container: ContainerInfo) => void;
+  onDelete: (container: ContainerInfo) => void;
+  onViewLogs: (container: ContainerInfo) => void;
+  onViewStats: (container: ContainerInfo) => void;
+  onRetry: () => void;
+  statsInterval: StatsInterval;
+  sortBy: SortColumn;
+  sortDirection: SortDirection;
+  onSortChange: (column: SortColumn) => void;
+}
+
 export function ContainersTable({
   isLoading,
   isError,
@@ -310,6 +342,10 @@ export function ContainersTable({
   onViewLogs,
   onViewStats,
   onRetry,
+  statsInterval,
+  sortBy,
+  sortDirection,
+  onSortChange,
 }: ContainersTableProps) {
   const renderRow = (container: ContainerInfo) => (
     <ContainerRow
@@ -325,8 +361,36 @@ export function ContainersTable({
       onDelete={onDelete}
       onViewLogs={onViewLogs}
       onViewStats={onViewStats}
+      statsInterval={statsInterval}
     />
   );
+
+  const SortHeader = ({ 
+    column, 
+    children, 
+    className = "" 
+  }: { 
+    column: SortColumn; 
+    children: React.ReactNode; 
+    className?: string;
+  }) => {
+    const isActive = sortBy === column;
+    const Icon = isActive 
+      ? (sortDirection === "desc" ? ChevronDown : ChevronUp)
+      : ArrowUpDown;
+    
+    return (
+      <TableHead 
+        className={`h-12 px-4 font-medium cursor-pointer hover:bg-muted/50 transition-colors ${className}`}
+        onClick={() => onSortChange(column)}
+      >
+        <div className="flex items-center gap-1">
+          {children}
+          <Icon className={`size-4 ${isActive ? "text-foreground" : "text-muted-foreground/50"}`} />
+        </div>
+      </TableHead>
+    );
+  };
 
   return (
     <div className="rounded-lg border bg-card">
@@ -339,14 +403,12 @@ export function ContainersTable({
                 onCheckedChange={onSelectAll}
               />
             </TableHead>
-            <TableHead className="h-12 px-4 font-medium">Container</TableHead>
-            <TableHead className="h-12 px-4 font-medium w-[120px]">
-              State
-            </TableHead>
-            <TableHead className="h-12 px-4 font-medium">Uptime</TableHead>
-            <TableHead className="h-12 px-4 font-medium">Created</TableHead>
-            <TableHead className="h-12 px-4 font-medium w-[120px]">Avg 1h</TableHead>
-            <TableHead className="h-12 px-4 font-medium w-[120px]">Avg 12h</TableHead>
+            <SortHeader column="name">Container</SortHeader>
+            <SortHeader column="state" className="w-[120px]">State</SortHeader>
+            <SortHeader column="uptime">Uptime</SortHeader>
+            <SortHeader column="created">Created</SortHeader>
+            <SortHeader column="cpu" className="w-[100px]">CPU</SortHeader>
+            <SortHeader column="ram" className="w-[100px]">RAM</SortHeader>
             <TableHead className="h-12 px-4 font-medium w-[160px]">
               Actions
             </TableHead>

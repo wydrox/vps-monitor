@@ -44,6 +44,8 @@ import type {
   ContainerActionType,
   GroupByOption,
   SortDirection,
+  SortColumn,
+  StatsInterval,
 } from "./container-utils";
 
 export function ContainersDashboard() {
@@ -83,8 +85,12 @@ export function ContainersDashboard() {
     setHostFilter,
     sortDirection,
     setSortDirection,
+    sortBy,
+    setSortBy,
     groupBy,
     setGroupBy,
+    statsInterval,
+    setStatsInterval,
     dateRange,
     setDateRange,
     clearDateRange,
@@ -157,15 +163,56 @@ export function ContainersDashboard() {
     return Array.from(unique).sort();
   }, [containers]);
 
+  // Helper to get sort value based on column
+  const getSortValue = (container: ContainerInfo, column: SortColumn): number | string => {
+    switch (column) {
+      case "name":
+        return formatContainerName(container.names).toLowerCase();
+      case "state":
+        return container.state.toLowerCase();
+      case "uptime":
+        return container.created;
+      case "created":
+        return container.created;
+      case "cpu": {
+        const cpu = statsInterval === "1h" 
+          ? container.historical_stats?.cpu_1h 
+          : container.historical_stats?.cpu_12h;
+        return cpu ?? -1; // Push containers without stats to the end
+      }
+      case "ram": {
+        const mem = statsInterval === "1h" 
+          ? container.historical_stats?.memory_1h 
+          : container.historical_stats?.memory_12h;
+        return mem ?? -1;
+      }
+      default:
+        return container.created;
+    }
+  };
+
   const filteredContainers = useMemo(() => {
     const filtered = containers.filter((container) =>
       matchesFilters(container, { includeStateFilter: true })
     );
 
-    return filtered.sort((a, b) =>
-      sortDirection === "desc" ? b.created - a.created : a.created - b.created
-    );
-  }, [containers, matchesFilters, sortDirection]);
+    return filtered.sort((a, b) => {
+      const aVal = getSortValue(a, sortBy);
+      const bVal = getSortValue(b, sortBy);
+      
+      // Handle string comparison
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return sortDirection === "desc" 
+          ? bVal.localeCompare(aVal) 
+          : aVal.localeCompare(bVal);
+      }
+      
+      // Handle number comparison
+      return sortDirection === "desc" 
+        ? (bVal as number) - (aVal as number) 
+        : (aVal as number) - (bVal as number);
+    });
+  }, [containers, matchesFilters, sortBy, sortDirection, statsInterval]);
 
   const totalPages =
     filteredContainers.length === 0
@@ -193,7 +240,7 @@ export function ContainersDashboard() {
       return null;
     }
     return groupByCompose(pageItems, sortDirection);
-  }, [pageItems, groupBy]);
+  }, [pageItems, groupBy, sortDirection]);
 
   const stateCounts = useMemo(() => {
     const counts = getInitialStateCounts();
@@ -289,8 +336,16 @@ export function ContainersDashboard() {
     setSortDirection(direction);
   };
 
+  const handleSortByChange = (column: SortColumn) => {
+    setSortBy(column);
+  };
+
   const handleGroupByChange = (value: GroupByOption) => {
     setGroupBy(value);
+  };
+
+  const handleStatsIntervalChange = (interval: StatsInterval) => {
+    setStatsInterval(interval);
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
@@ -408,6 +463,23 @@ export function ContainersDashboard() {
     setSelectedContainerIds([]);
   };
 
+  const handleSortChange = (column: SortColumn) => {
+    // If clicking the same column, toggle direction
+    if (sortBy === column) {
+      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
+    } else {
+      // New column, set it with default direction
+      setSortBy(column);
+      // Default to desc for dates, asc for names/state
+      const defaultDesc = ["created", "uptime", "cpu", "ram"].includes(column);
+      if (defaultDesc && sortDirection !== "desc") {
+        setSortDirection("desc");
+      } else if (!defaultDesc && sortDirection !== "asc") {
+        setSortDirection("asc");
+      }
+    }
+  };
+
   const confirmActionTitle =
     confirmAction?.type === "stop"
       ? "Stop container?"
@@ -453,8 +525,12 @@ export function ContainersDashboard() {
           availableHosts={hosts}
           sortDirection={sortDirection}
           onSortDirectionChange={handleSortDirectionChange}
+          sortBy={sortBy}
+          onSortByChange={handleSortByChange}
           groupBy={groupBy}
           onGroupByChange={handleGroupByChange}
+          statsInterval={statsInterval}
+          onStatsIntervalChange={handleStatsIntervalChange}
           dateRange={dateRange}
           onDateRangeChange={handleDateRangeChange}
           onDateRangeClear={handleDateRangeClear}
@@ -545,6 +621,10 @@ export function ContainersDashboard() {
           onRetry={() => {
             void refetch();
           }}
+          statsInterval={statsInterval}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
         />
 
         <ContainersPagination
