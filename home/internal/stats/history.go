@@ -28,7 +28,7 @@ type HistoryManager struct {
 func NewHistoryManager() *HistoryManager {
 	return &HistoryManager{
 		containers: make(map[string]*ContainerHistory),
-		maxSize:    720,
+		maxSize:    2000, // Store ~16+ hours of data (at 30s interval) for 12h averages
 	}
 }
 
